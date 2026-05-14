@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="mr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+  <title>नवीन विजिटर नोंदणी — आश्रम सेवा</title>
+  <meta name="description" content="आश्रम विजिटर नोंदणी फॉर्म — नवीन विजिटरसाठी." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Devanagari:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&family=Cormorant+Garamond:wght@500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+</head>
+<body data-page="new">
+  <header class="site-header"></header>
+
+  <main class="site-main narrow">
+    <section class="page-hero">
+      <div class="ornament">आश्रम सेवा</div>
+      <h1>विजिटर नोंदणी पुस्तिका</h1>
+      <p>आपले हार्दिक स्वागत आहे. कृपया आपली माहिती खाली नोंदवा — आम्ही आपल्या प्रत्येक भेटीची आदरपूर्वक नोंद ठेवतो.</p>
+    </section>
+
+    <div id="app"></div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+  (function () {
+    const A = window.AshramApp;
+    const root = document.getElementById('app');
+
+    const state = {
+      step: 0,
+      data: {
+        name: '', mobile: '', address: '',
+        professions: [], professionOther: '',
+        visitDate: A.nowLocalISO(),
+        stayingNow: '', checkin: '', checkout: '', days: '',
+        purposes: [], purposeOther: '',
+        programs: [],
+        hasHealth: '', healthConditions: [], healthOther: '',
+        rulesReady: '', fullParticipation: '', consent: '',
+        note: '',
+      },
+      view: 'form', // 'form' | 'success'
+      lastSubmit: null,
+    };
+
+    function isStaying() { return state.data.stayingNow === 'होय'; }
+    function totalSteps() { return isStaying() ? 4 : 3; }
+
+    function update(patch) {
+      Object.assign(state.data, patch);
+    }
+
+    function canAdvance() {
+      const d = state.data;
+      const step = state.step;
+      if (step === 0) return d.name.trim() && /^\d{10}$/.test(d.mobile) && d.address.trim();
+      if (step === 1) {
+        if (!d.stayingNow) return false;
+        const purposeOk = d.purposes.length > 0 || d.purposeOther.trim();
+        return purposeOk;
+      }
+      if (step === 2 && isStaying()) return d.rulesReady === 'हो' && d.consent === 'हो';
+      return true;
+    }
+
+    function render() {
+      if (state.view === 'success') return renderSuccess();
+      const ts = totalSteps();
+      const stepIdx = state.step;
+      root.innerHTML = `
+        <div class="progress">
+          <div class="progress-head">
+            <span class="progress-step">पायरी ${stepIdx + 1} / ${ts}</span>
+            <span class="progress-pips">${
+              Array.from({ length: ts }).map((_, i) =>
+                `<span class="progress-pip ${i === stepIdx ? 'active' : ''} ${i < stepIdx ? 'done' : ''}"></span>`
+              ).join('')
+            }</span>
+          </div>
+          <div class="progress-rail"><div class="progress-fill" style="width:${((stepIdx+1)/ts)*100}%"></div></div>
+        </div>
+        <div class="card slide-in" id="step-card"></div>
+        <div class="btn-row">
+          ${stepIdx > 0 ? '<button class="btn btn-ghost" id="back-btn">← मागे</button>' : ''}
+          <button class="btn ${stepIdx < ts - 1 ? 'btn-primary' : 'btn-primary'}" id="next-btn">
+            ${stepIdx < ts - 1 ? 'पुढे →' : 'नोंद जतन करा'}
+          </button>
+        </div>
+      `;
+      const stepCard = document.getElementById('step-card');
+      if (stepIdx === 0) renderStepBasic(stepCard);
+      else if (stepIdx === 1) renderStepStay(stepCard);
+      else if (stepIdx === 2 && isStaying()) renderStepHealth(stepCard);
+      else renderStepNote(stepCard);
+
+      const backBtn = document.getElementById('back-btn');
+      if (backBtn) backBtn.onclick = () => { state.step--; render(); };
+      const nextBtn = document.getElementById('next-btn');
+      nextBtn.disabled = !canAdvance();
+      nextBtn.onclick = () => {
+        if (!canAdvance()) return;
+        if (stepIdx < ts - 1) { state.step++; render(); }
+        else submit();
+      };
+    }
+
+    function renderStepBasic(host) {
+      host.innerHTML = `
+        <div class="section-head">
+          <div class="num">01</div>
+          <div><h3>मूलभूत माहिती</h3><p>विजिटरची ओळख व संपर्क तपशील</p></div>
+        </div>
+        <div class="field">
+          <label class="field-label">पूर्ण नाव <span class="req">*</span></label>
+          <input type="text" class="input" id="f-name" placeholder="उदा. श्री. राम जोशी" value="${A.escapeHTML(state.data.name)}" />
+        </div>
+        <div class="field">
+          <label class="field-label">मोबाईल नंबर <span class="req">*</span></label>
+          <input type="tel" class="input" id="f-mobile" placeholder="१० अंकी मोबाईल नंबर" maxlength="10" value="${A.escapeHTML(state.data.mobile)}" />
+          <div class="field-hint">हा नंबर पुढच्या भेटीसाठी ओळख म्हणून वापरला जाईल</div>
+        </div>
+        <div class="field">
+          <label class="field-label">पूर्ण पत्ता <span class="req">*</span></label>
+          <textarea class="textarea" id="f-address" rows="3" placeholder="घर क्र., रस्ता, शहर, जिल्हा, पिनकोड">${A.escapeHTML(state.data.address)}</textarea>
+        </div>
+        <div class="field">
+          <label class="field-label">व्यवसाय / कार्यक्षेत्र</label>
+          <div id="f-prof"></div>
+          <div class="field-hint">एकापेक्षा जास्त निवडता येतील</div>
+        </div>
+        <div class="field">
+          <label class="field-label">भेटीची तारीख व वेळ <span class="req">*</span></label>
+          <input type="datetime-local" class="input" id="f-date" value="${A.escapeHTML(state.data.visitDate)}" />
+        </div>
+      `;
+      A.$('#f-name', host).addEventListener('input', e => { update({ name: e.target.value }); updateNextBtn(); });
+      A.$('#f-mobile', host).addEventListener('input', e => {
+        const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+        e.target.value = cleaned;
+        update({ mobile: cleaned });
+        updateNextBtn();
+      });
+      A.$('#f-address', host).addEventListener('input', e => { update({ address: e.target.value }); updateNextBtn(); });
+      A.$('#f-date', host).addEventListener('input', e => { update({ visitDate: e.target.value }); });
+
+      A.makeChipGroup({
+        container: A.$('#f-prof', host),
+        options: A.PROFESSION_OPTIONS,
+        values: state.data.professions,
+        otherValue: state.data.professionOther,
+        otherLabel: 'इतर',
+        otherPlaceholder: 'इतर व्यवसाय टाइप करा',
+        onChange: (vals, other) => { update({ professions: vals, professionOther: other }); },
+      });
+    }
+
+    function renderStepStay(host) {
+      const d = state.data;
+      host.innerHTML = `
+        <div class="section-head">
+          <div class="num">02</div>
+          <div><h3>भेटीचा हेतू</h3><p>मुक्काम, उद्देश व कार्यक्रम</p></div>
+        </div>
+        <div class="field">
+          <label class="field-label">सध्या आश्रमात राहणार आहात का? <span class="req">*</span></label>
+          <div class="radio-group" id="f-staying">
+            <label class="radio-pill"><input type="radio" name="staying" value="होय" ${d.stayingNow==='होय'?'checked':''}/><span class="dot"></span>होय, मुक्काम करणार</label>
+            <label class="radio-pill"><input type="radio" name="staying" value="नाही" ${d.stayingNow==='नाही'?'checked':''}/><span class="dot"></span>नाही, फक्त भेट</span></label>
+          </div>
+        </div>
+        <div class="cond" id="stay-fields" style="display:${d.stayingNow==='होय'?'block':'none'};">
+          <div class="grid-2">
+            <div class="field"><label class="field-label">चेक-इन तारीख</label><input type="date" class="input" id="f-ci" value="${d.checkin}" /></div>
+            <div class="field"><label class="field-label">चेक-आउट तारीख</label><input type="date" class="input" id="f-co" value="${d.checkout}" /></div>
+          </div>
+          <div class="field">
+            <label class="field-label">कालावधी (दिवस)</label>
+            <input type="number" class="input" id="f-days" min="1" placeholder="तारखांवरून आपोआप मोजला जाईल" value="${d.days}" />
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">भेटीचा उद्देश <span class="req">*</span></label>
+          <div id="f-purpose"></div>
+          <div class="field-hint">एकापेक्षा जास्त निवडता येतील</div>
+        </div>
+        <div class="field">
+          <label class="field-label">सहभाग कार्यक्रम</label>
+          <div id="f-programs"></div>
+        </div>
+      `;
+      A.$$('input[name="staying"]', host).forEach(r => r.addEventListener('change', e => {
+        update({ stayingNow: e.target.value });
+        A.$('#stay-fields', host).style.display = (e.target.value === 'होय') ? 'block' : 'none';
+        updateNextBtn();
+      }));
+      const ciEl = A.$('#f-ci', host), coEl = A.$('#f-co', host), dEl = A.$('#f-days', host);
+      function calc() {
+        if (ciEl.value && coEl.value) {
+          const diff = Math.round((new Date(coEl.value) - new Date(ciEl.value)) / 86400000);
+          if (diff > 0) { dEl.value = diff; update({ days: String(diff) }); }
+        }
+      }
+      ciEl.addEventListener('change', e => { update({ checkin: e.target.value }); calc(); });
+      coEl.addEventListener('change', e => { update({ checkout: e.target.value }); calc(); });
+      dEl.addEventListener('input', e => update({ days: e.target.value }));
+
+      A.makeChipGroup({
+        container: A.$('#f-purpose', host),
+        options: A.PURPOSE_OPTIONS,
+        values: state.data.purposes,
+        otherValue: state.data.purposeOther,
+        otherLabel: 'इतर',
+        otherPlaceholder: 'आपला उद्देश टाइप करा',
+        onChange: (vals, other) => { update({ purposes: vals, purposeOther: other }); updateNextBtn(); },
+      });
+      A.makeChipGroup({
+        container: A.$('#f-programs', host),
+        options: A.PROGRAM_OPTIONS,
+        values: state.data.programs,
+        allowOther: false,
+        onChange: (vals) => { update({ programs: vals }); },
+      });
+    }
+
+    function renderStepHealth(host) {
+      const d = state.data;
+      host.innerHTML = `
+        <div class="section-head">
+          <div class="num">03</div>
+          <div><h3>आरोग्य व संमती</h3><p>मुक्कामासाठी आवश्यक माहिती</p></div>
+        </div>
+        <div class="field">
+          <label class="field-label">तुम्हाला काही आरोग्य समस्या आहेत का?</label>
+          <div class="radio-group">
+            <label class="radio-pill"><input type="radio" name="has-health" value="होय" ${d.hasHealth==='होय'?'checked':''}/><span class="dot"></span>होय</label>
+            <label class="radio-pill"><input type="radio" name="has-health" value="नाही" ${d.hasHealth==='नाही'?'checked':''}/><span class="dot"></span>नाही</label>
+          </div>
+        </div>
+        <div class="cond" id="health-cond" style="display:${d.hasHealth==='होय'?'block':'none'};">
+          <div class="field">
+            <label class="field-label">कोणत्या आरोग्य समस्या?</label>
+            <div id="f-health"></div>
+            <div class="field-hint">एकापेक्षा जास्त निवडता येतील</div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">शिबिराचे नियम पाळण्यास तयार आहात? <span class="req">*</span></label>
+          <div class="radio-group">
+            <label class="radio-pill"><input type="radio" name="rules" value="हो" ${d.rulesReady==='हो'?'checked':''}/><span class="dot"></span>हो</label>
+            <label class="radio-pill"><input type="radio" name="rules" value="खात्री नाही" ${d.rulesReady==='खात्री नाही'?'checked':''}/><span class="dot"></span>खात्री नाही</label>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">पूर्ण वेळ सहभागी होणार?</label>
+          <div class="radio-group">
+            <label class="radio-pill"><input type="radio" name="full" value="हो" ${d.fullParticipation==='हो'?'checked':''}/><span class="dot"></span>हो</label>
+            <label class="radio-pill"><input type="radio" name="full" value="नाही" ${d.fullParticipation==='नाही'?'checked':''}/><span class="dot"></span>नाही</label>
+          </div>
+        </div>
+        <div class="consent-box">
+          <p class="consent-quote">"आश्रमातील सर्व नियम मान्य आहेत. मी या ध्यान शिबिरासाठी पूर्णपणे तयार आहे." <span class="req">*</span></p>
+          <div class="radio-group cols-1">
+            <label class="radio-pill"><input type="radio" name="consent" value="हो" ${d.consent==='हो'?'checked':''}/><span class="dot"></span>हो, मी सहमत आहे</label>
+          </div>
+        </div>
+      `;
+      A.$$('input[name="has-health"]', host).forEach(r => r.addEventListener('change', e => {
+        update({ hasHealth: e.target.value });
+        A.$('#health-cond', host).style.display = (e.target.value === 'होय') ? 'block' : 'none';
+      }));
+      A.$$('input[name="rules"]', host).forEach(r => r.addEventListener('change', e => { update({ rulesReady: e.target.value }); updateNextBtn(); }));
+      A.$$('input[name="full"]', host).forEach(r => r.addEventListener('change', e => update({ fullParticipation: e.target.value })));
+      A.$$('input[name="consent"]', host).forEach(r => r.addEventListener('change', e => { update({ consent: e.target.value }); updateNextBtn(); }));
+
+      A.makeChipGroup({
+        container: A.$('#f-health', host),
+        options: A.HEALTH_OPTIONS,
+        values: state.data.healthConditions,
+        otherValue: state.data.healthOther,
+        otherLabel: 'इतर',
+        otherPlaceholder: 'इतर आजार टाइप करा',
+        onChange: (vals, other) => update({ healthConditions: vals, healthOther: other }),
+      });
+    }
+
+    function renderStepNote(host) {
+      const d = state.data;
+      const stepNum = isStaying() ? '04' : '03';
+      host.innerHTML = `
+        <div class="section-head">
+          <div class="num">${stepNum}</div>
+          <div><h3>विशेष नोंद</h3><p>पर्यायी — आश्रमासाठी अंतर्गत शेरा</p></div>
+        </div>
+        <div class="field">
+          <label class="field-label">अंतर्गत शेरा</label>
+          <textarea class="textarea" id="f-note" rows="3" placeholder="उदा. स्वयंसेवक, VIP, विशिष्ट गरज">${A.escapeHTML(d.note)}</textarea>
+        </div>
+        <div id="review-summary"></div>
+      `;
+      A.$('#f-note', host).addEventListener('input', e => update({ note: e.target.value }));
+      renderReview(A.$('#review-summary', host));
+    }
+
+    function renderReview(host) {
+      const d = state.data;
+      const isS = isStaying();
+      const profList = [...d.professions, ...(d.professionOther ? [d.professionOther] : [])];
+      const purpList = [...d.purposes, ...(d.purposeOther ? [d.purposeOther] : [])];
+      const healthList = d.hasHealth === 'होय' ? [...d.healthConditions, ...(d.healthOther ? [d.healthOther] : [])] : [];
+      const rows = [
+        ['नाव', d.name],
+        ['मोबाईल', d.mobile],
+        ['पत्ता', d.address],
+        ['व्यवसाय', profList.length ? profList.join(', ') : '—'],
+        ['उद्देश', purpList.length ? purpList.join(', ') : '—'],
+        ['मुक्काम', isS ? `होय (${d.days || 0} दिवस)` : 'फक्त भेट'],
+        d.programs.length && ['कार्यक्रम', d.programs.join(', ')],
+        healthList.length && ['आरोग्य', healthList.join(', ')],
+        d.note && ['शेरा', d.note],
+      ].filter(Boolean);
+      host.innerHTML = `
+        <div class="review">
+          <div class="review-head">सारांश</div>
+          ${rows.map(([k, v]) => `<div class="review-row"><span class="k">${k}</span><span class="v">${A.escapeHTML(v || '—')}</span></div>`).join('')}
+        </div>
+      `;
+    }
+
+    function updateNextBtn() {
+      const btn = document.getElementById('next-btn');
+      if (btn) btn.disabled = !canAdvance();
+    }
+
+    function submit() {
+      try {
+        const result = window.AshramApp.addVisitor(state.data);
+        state.lastSubmit = { data: { ...state.data }, result };
+        state.view = 'success';
+        render();
+      } catch (e) {
+        console.error(e);
+        A.showToast('नोंदणी अयशस्वी, पुन्हा प्रयत्न करा');
+      }
+    }
+
+    function renderSuccess() {
+      const { data, result } = state.lastSubmit;
+      const visitNum = result.visitNumber;
+      const isS = data.stayingNow === 'होय';
+      root.innerHTML = `
+        <div class="card success-screen">
+          <div class="success-mark">
+            <svg width="80" height="80" viewBox="0 0 64 64" fill="none">
+              <circle cx="32" cy="32" r="30" fill="none" stroke="#B85A1A" stroke-width="0.75" opacity="0.4"/>
+              <circle cx="32" cy="32" r="22" fill="none" stroke="#B85A1A" stroke-width="1"/>
+              <path d="M22 32 L29 39 L43 25" stroke="#B85A1A" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h1>नोंद यशस्वीरीत्या जतन झाली</h1>
+          <p>धन्यवाद! आपल्या भेटीची आदरपूर्वक नोंद घेण्यात आली आहे.</p>
+          <div class="success-summary review">
+            <div class="review-head">तपशील — ही आपली ${visitNum} वी भेट आहे</div>
+            <div class="review-row"><span class="k">नाव</span><span class="v">${A.escapeHTML(data.name)}</span></div>
+            <div class="review-row"><span class="k">मोबाईल</span><span class="v">${A.escapeHTML(data.mobile)}</span></div>
+            <div class="review-row"><span class="k">मुक्काम</span><span class="v">${isS ? `होय (${data.days || 0} दिवस)` : 'फक्त भेट'}</span></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-ghost" id="go-dash">सर्व नोंदी पहा</button>
+            <button class="btn btn-primary" id="new-reg">नवीन नोंदणी</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('go-dash').onclick = () => { window.location.href = 'dashboard.html'; };
+      document.getElementById('new-reg').onclick = () => {
+        state.step = 0;
+        state.view = 'form';
+        state.lastSubmit = null;
+        state.data = {
+          name: '', mobile: '', address: '',
+          professions: [], professionOther: '',
+          visitDate: A.nowLocalISO(),
+          stayingNow: '', checkin: '', checkout: '', days: '',
+          purposes: [], purposeOther: '',
+          programs: [],
+          hasHealth: '', healthConditions: [], healthOther: '',
+          rulesReady: '', fullParticipation: '', consent: '',
+          note: '',
+        };
+        render();
+      };
+    }
+
+    render();
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="mr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+  <title>यापूर्वी भेट दिलेली — आश्रम सेवा</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Devanagari:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&family=Cormorant+Garamond:wght@500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+</head>
+<body data-page="search">
+  <header class="site-header"></header>
+
+  <main class="site-main narrow">
+    <section class="page-hero">
+      <div class="ornament">पुन्हा स्वागत</div>
+      <h1>यापूर्वी भेट दिलेली</h1>
+      <p>आपली पूर्वीची नोंद शोधा — मोबाईल नंबर किंवा नावाने. भेटीचा संपूर्ण इतिहास पाहता येईल.</p>
+    </section>
+
+    <div id="app"></div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+  (function () {
+    const A = window.AshramApp;
+    const root = document.getElementById('app');
+
+    const state = {
+      view: 'search',       // 'search' | 'results' | 'profile' | 'success'
+      searchType: 'mobile', // 'mobile' | 'name'
+      query: '',
+      results: [],
+      selected: null,       // visitor object
+      visitData: null,
+      lastSubmit: null,
+    };
+
+    function showAll() {
+      state.results = A.loadVisitors();
+      state.view = 'results';
+      render();
+    }
+
+    function doSearch() {
+      const q = state.query.trim();
+      if (!q) { showAll(); return; }
+      let matches = [];
+      if (state.searchType === 'mobile') {
+        matches = A.searchVisitors({ mobile: q });
+        if (matches.length === 0) matches = A.loadVisitors().filter(v => v.mobile.includes(q));
+      } else {
+        matches = A.searchVisitors({ name: q });
+      }
+      state.results = matches;
+      state.view = 'results';
+      render();
+    }
+
+    function selectVisitor(v) {
+      state.selected = v;
+      state.visitData = {
+        visitDate: A.nowLocalISO(),
+        stayingNow: '', checkin: '', checkout: '', days: '',
+        purposes: [], purposeOther: '',
+        programs: v.visits[0]?.programs || [],
+        hasHealth: '', healthConditions: [], healthOther: '',
+        rulesReady: '', fullParticipation: '', consent: '',
+        note: '',
+      };
+      state.view = 'profile';
+      render();
+    }
+
+    function render() {
+      if (state.view === 'search') return renderSearch();
+      if (state.view === 'results') return renderResults();
+      if (state.view === 'profile') return renderProfile();
+      if (state.view === 'success') return renderSuccess();
+    }
+
+    function renderSearch() {
+      root.innerHTML = `
+        <div class="card slide-in">
+          <div class="search-tabs">
+            <button type="button" class="search-tab ${state.searchType==='mobile'?'active':''}" data-type="mobile">मोबाईल नंबरने</button>
+            <button type="button" class="search-tab ${state.searchType==='name'?'active':''}" data-type="name">नावाने</button>
+          </div>
+          <div class="field">
+            <div class="search-row">
+              <input type="${state.searchType==='mobile'?'tel':'text'}" class="input" id="q-input"
+                placeholder="${state.searchType==='mobile'?'१० अंकी मोबाईल नंबर':'विजिटरचे नाव (उदा. राम)'}"
+                ${state.searchType==='mobile'?'maxlength="10"':''} value="${A.escapeHTML(state.query)}" />
+              <button class="btn btn-accent" id="search-btn">शोधा</button>
+            </div>
+            <div class="field-hint">नवीन भेटीसाठी फक्त वेळ आणि मुक्काम माहिती भरावी लागेल</div>
+          </div>
+          <button class="btn btn-ghost btn-block" id="show-all-btn" style="margin-top:8px;">सर्व नोंदी पहा →</button>
+          <div class="demo-banner" style="margin-top:18px;">
+            <strong>डेमो:</strong> मोबाईल <strong>7045021486</strong> · नाव <strong>राम</strong> (२ व्यक्ती) · नाव <strong>सुनिता</strong>
+          </div>
+        </div>
+      `;
+      A.$$('.search-tab').forEach(btn => btn.onclick = () => {
+        state.searchType = btn.dataset.type;
+        state.query = '';
+        render();
+      });
+      const inp = A.$('#q-input');
+      inp.addEventListener('input', e => {
+        state.query = state.searchType === 'mobile'
+          ? e.target.value.replace(/\D/g, '').slice(0, 10)
+          : e.target.value;
+        if (inp.value !== state.query) inp.value = state.query;
+      });
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } });
+      A.$('#search-btn').onclick = doSearch;
+      A.$('#show-all-btn').onclick = showAll;
+      inp.focus();
+    }
+
+    function renderResults() {
+      const list = state.results;
+      root.innerHTML = `
+        <button class="btn-link" id="back-btn">← पुन्हा शोधा</button>
+        ${list.length === 0
+          ? `<div class="empty-state slide-in">
+              <h3>कोणतीही जुनी नोंद सापडली नाही</h3>
+              <p>"${A.escapeHTML(state.query)}" साठी नोंद नाही. नवीन विजिटर म्हणून नोंदवायचे?</p>
+              <div style="margin-top:14px;"><a class="btn btn-accent" href="index.html">नवीन विजिटर नोंदवा →</a></div>
+            </div>`
+          : `<div class="results-head">${list.length} व्यक्ती सापडल्या</div>
+             <div class="result-list slide-in" id="rlist"></div>`
+        }
+      `;
+      A.$('#back-btn').onclick = () => { state.view = 'search'; render(); };
+      const host = A.$('#rlist');
+      if (host) {
+        list.forEach(v => {
+          const last = v.visits[0];
+          const btn = document.createElement('button');
+          btn.className = 'result-card';
+          btn.type = 'button';
+          btn.innerHTML = `
+            <div class="avatar">${A.escapeHTML(A.getInitials(v.name))}</div>
+            <div>
+              <div class="result-name">${A.escapeHTML(v.name)}</div>
+              <div class="result-meta">${A.maskMobile(v.mobile)} · ${v.visits.length} भेटी · शेवटची ${A.fmtDate(last?.date)}</div>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--hint);"><polyline points="9 18 15 12 9 6"/></svg>
+          `;
+          btn.onclick = () => selectVisitor(v);
+          host.appendChild(btn);
+        });
+      }
+    }
+
+    function renderProfile() {
+      const v = state.selected;
+      const d = state.visitData;
+      const totalStay = v.visits.reduce((s, vi) => s + (vi.days || 0), 0);
+      const first = v.visits[v.visits.length - 1];
+      root.innerHTML = `
+        <button class="btn-link" id="back-btn">← परत निकालांकडे</button>
+
+        <div class="profile-hero slide-in">
+          <div class="profile-hero-head">
+            <div class="avatar">${A.escapeHTML(A.getInitials(v.name))}</div>
+            <div>
+              <div class="welcome-back">पुन्हा स्वागत</div>
+              <h2>${A.escapeHTML(v.name)}</h2>
+              <div class="mobile-line">${A.maskMobile(v.mobile)} · आश्रमातील नियमित भक्त</div>
+            </div>
+          </div>
+          <div class="profile-metrics">
+            <div class="metric">
+              <div class="metric-label">एकूण भेटी</div>
+              <div class="metric-val">${v.visits.length}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">मुक्काम</div>
+              <div class="metric-val">${totalStay}<span class="unit">दिवस</span></div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">सदस्य पासून</div>
+              <div class="metric-val small">${A.fmtMonthYear(first?.date)}</div>
+            </div>
+          </div>
+        </div>
+
+        <details class="history slide-in">
+          <summary class="history-head">
+            <span>मागील भेटींचा इतिहास (${v.visits.length})</span>
+            <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="history-list">
+            ${v.visits.map(vi => `
+              <div class="history-item">
+                <div class="history-date">${A.fmtDate(vi.date)}</div>
+                <div>
+                  <div class="history-info">${vi.stayingNow === 'होय' ? `मुक्काम ${vi.days || 0} दिवस` : 'फक्त भेट'}${vi.note ? ' · ' + A.escapeHTML(vi.note) : ''}</div>
+                  ${(vi.purposes||[]).length ? `<div class="history-tags">${vi.purposes.map(p => `<span class="tag accent">${A.escapeHTML(p)}</span>`).join('')}</div>` : ''}
+                  ${(vi.programs||[]).length ? `<div class="history-tags">${vi.programs.map(p => `<span class="tag">${A.escapeHTML(p)}</span>`).join('')}</div>` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </details>
+
+        <div class="card slide-in">
+          <div class="section-head">
+            <div class="num">◇</div>
+            <div><h3>सध्याची भेट</h3><p>या भेटीचे तपशील भरा</p></div>
+          </div>
+
+          <div class="field">
+            <label class="field-label">सध्या आश्रमात राहणार आहात का? <span class="req">*</span></label>
+            <div class="radio-group">
+              <label class="radio-pill"><input type="radio" name="staying" value="होय" ${d.stayingNow==='होय'?'checked':''}/><span class="dot"></span>होय, मुक्काम करणार</label>
+              <label class="radio-pill"><input type="radio" name="staying" value="नाही" ${d.stayingNow==='नाही'?'checked':''}/><span class="dot"></span>नाही, फक्त भेट</label>
+            </div>
+          </div>
+
+          <div class="cond" id="stay-block" style="display:${d.stayingNow==='होय'?'block':'none'};">
+            <div class="grid-2">
+              <div class="field"><label class="field-label">चेक-इन</label><input type="date" class="input" id="r-ci" value="${d.checkin}"/></div>
+              <div class="field"><label class="field-label">चेक-आउट</label><input type="date" class="input" id="r-co" value="${d.checkout}"/></div>
+            </div>
+            <div class="field"><label class="field-label">कालावधी (दिवस)</label><input type="number" class="input" id="r-days" min="1" value="${d.days}"/></div>
+            <div class="field">
+              <label class="field-label">शिबिराचे नियम पाळण्यास तयार आहात? <span class="req">*</span></label>
+              <div class="radio-group">
+                <label class="radio-pill"><input type="radio" name="rules" value="हो" ${d.rulesReady==='हो'?'checked':''}/><span class="dot"></span>हो</label>
+                <label class="radio-pill"><input type="radio" name="rules" value="खात्री नाही" ${d.rulesReady==='खात्री नाही'?'checked':''}/><span class="dot"></span>खात्री नाही</label>
+              </div>
+            </div>
+            <div class="consent-box">
+              <p class="consent-quote">"आश्रमातील सर्व नियम मान्य आहेत. मी पूर्णपणे तयार आहे." <span class="req">*</span></p>
+              <div class="radio-group cols-1">
+                <label class="radio-pill"><input type="radio" name="consent" value="हो" ${d.consent==='हो'?'checked':''}/><span class="dot"></span>हो, मी सहमत आहे</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label">भेटीचा उद्देश <span class="req">*</span></label>
+            <div id="r-purpose"></div>
+            <div class="field-hint">एकापेक्षा जास्त निवडता येतील</div>
+          </div>
+
+          <div class="field">
+            <label class="field-label">तुम्हाला काही आरोग्य समस्या आहेत का?</label>
+            <div class="radio-group">
+              <label class="radio-pill"><input type="radio" name="has-health" value="होय" ${d.hasHealth==='होय'?'checked':''}/><span class="dot"></span>होय</label>
+              <label class="radio-pill"><input type="radio" name="has-health" value="नाही" ${d.hasHealth==='नाही'?'checked':''}/><span class="dot"></span>नाही</label>
+            </div>
+          </div>
+          <div class="cond" id="health-block" style="display:${d.hasHealth==='होय'?'block':'none'};">
+            <div class="field">
+              <label class="field-label">कोणत्या आरोग्य समस्या?</label>
+              <div id="r-health"></div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label">सहभाग कार्यक्रम</label>
+            <div id="r-programs"></div>
+          </div>
+
+          <div class="field">
+            <label class="field-label">अंतर्गत शेरा</label>
+            <textarea class="textarea" id="r-note" rows="2" placeholder="उदा. स्वयंसेवक, VIP, विशिष्ट गरज">${A.escapeHTML(d.note)}</textarea>
+          </div>
+
+          <button class="btn btn-primary btn-block" id="submit-btn">नवीन भेट नोंदवा</button>
+        </div>
+      `;
+      A.$('#back-btn').onclick = () => { state.view = 'results'; render(); };
+      A.$$('input[name="staying"]').forEach(r => r.addEventListener('change', e => {
+        d.stayingNow = e.target.value;
+        A.$('#stay-block').style.display = (e.target.value === 'होय') ? 'block' : 'none';
+        updateSubmit();
+      }));
+      A.$$('input[name="has-health"]').forEach(r => r.addEventListener('change', e => {
+        d.hasHealth = e.target.value;
+        A.$('#health-block').style.display = (e.target.value === 'होय') ? 'block' : 'none';
+      }));
+      A.$$('input[name="rules"]').forEach(r => r.addEventListener('change', e => { d.rulesReady = e.target.value; updateSubmit(); }));
+      A.$$('input[name="consent"]').forEach(r => r.addEventListener('change', e => { d.consent = e.target.value; updateSubmit(); }));
+
+      const ci = A.$('#r-ci'), co = A.$('#r-co'), dEl = A.$('#r-days');
+      function calc() {
+        if (ci.value && co.value) {
+          const diff = Math.round((new Date(co.value) - new Date(ci.value)) / 86400000);
+          if (diff > 0) { dEl.value = diff; d.days = String(diff); }
+        }
+      }
+      ci.addEventListener('change', e => { d.checkin = e.target.value; calc(); });
+      co.addEventListener('change', e => { d.checkout = e.target.value; calc(); });
+      dEl.addEventListener('input', e => d.days = e.target.value);
+      A.$('#r-note').addEventListener('input', e => d.note = e.target.value);
+
+      A.makeChipGroup({
+        container: A.$('#r-purpose'),
+        options: A.PURPOSE_OPTIONS,
+        values: d.purposes, otherValue: d.purposeOther,
+        otherLabel: 'इतर', otherPlaceholder: 'आपला उद्देश टाइप करा',
+        onChange: (vals, other) => { d.purposes = vals; d.purposeOther = other; updateSubmit(); },
+      });
+      A.makeChipGroup({
+        container: A.$('#r-health'),
+        options: A.HEALTH_OPTIONS,
+        values: d.healthConditions, otherValue: d.healthOther,
+        otherLabel: 'इतर', otherPlaceholder: 'इतर आजार टाइप करा',
+        onChange: (vals, other) => { d.healthConditions = vals; d.healthOther = other; },
+      });
+      A.makeChipGroup({
+        container: A.$('#r-programs'),
+        options: A.PROGRAM_OPTIONS,
+        values: d.programs, allowOther: false,
+        onChange: (vals) => { d.programs = vals; },
+      });
+
+      A.$('#submit-btn').onclick = submit;
+      updateSubmit();
+    }
+
+    function canSubmit() {
+      const d = state.visitData;
+      if (!d.stayingNow) return false;
+      if (!(d.purposes.length || d.purposeOther.trim())) return false;
+      if (d.stayingNow === 'होय' && (d.rulesReady !== 'हो' || d.consent !== 'हो')) return false;
+      return true;
+    }
+    function updateSubmit() {
+      const btn = A.$('#submit-btn');
+      if (btn) btn.disabled = !canSubmit();
+    }
+
+    function submit() {
+      if (!canSubmit()) return;
+      const v = state.selected;
+      const d = state.visitData;
+      const full = {
+        mobile: v.mobile, name: v.name, address: v.address,
+        professions: v.professions, professionOther: '',
+        ...d,
+      };
+      try {
+        const result = A.addVisitor(full);
+        state.lastSubmit = { data: full, result };
+        state.view = 'success';
+        render();
+      } catch (e) {
+        console.error(e);
+        A.showToast('जतन अयशस्वी');
+      }
+    }
+
+    function renderSuccess() {
+      const { data, result } = state.lastSubmit;
+      const visitNum = result.visitNumber;
+      const isS = data.stayingNow === 'होय';
+      root.innerHTML = `
+        <div class="card success-screen">
+          <div class="success-mark">
+            <svg width="80" height="80" viewBox="0 0 64 64" fill="none">
+              <circle cx="32" cy="32" r="30" fill="none" stroke="#B85A1A" stroke-width="0.75" opacity="0.4"/>
+              <circle cx="32" cy="32" r="22" fill="none" stroke="#B85A1A" stroke-width="1"/>
+              <path d="M22 32 L29 39 L43 25" stroke="#B85A1A" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h1>नवीन भेट यशस्वीरीत्या नोंदवली</h1>
+          <p>${A.escapeHTML(data.name)} — ही आपली ${visitNum} वी भेट आहे.</p>
+          <div class="success-summary review">
+            <div class="review-row"><span class="k">मोबाईल</span><span class="v">${A.escapeHTML(data.mobile)}</span></div>
+            <div class="review-row"><span class="k">मुक्काम</span><span class="v">${isS ? `होय (${data.days || 0} दिवस)` : 'फक्त भेट'}</span></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-ghost" id="go-dash">सर्व नोंदी पहा</button>
+            <button class="btn btn-primary" id="another">पुन्हा शोधा</button>
+          </div>
+        </div>
+      `;
+      A.$('#go-dash').onclick = () => { window.location.href = 'dashboard.html'; };
+      A.$('#another').onclick = () => { state.view = 'search'; state.query = ''; state.selected = null; render(); };
+    }
+
+    render();
+  })();
+  </script>
+</body>
+</html>

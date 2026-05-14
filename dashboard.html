@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="mr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+  <title>सर्व नोंदी — आश्रम सेवा</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Devanagari:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&family=Cormorant+Garamond:wght@500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+</head>
+<body data-page="dash">
+  <header class="site-header"></header>
+
+  <main class="site-main">
+    <div class="dash-head">
+      <div>
+        <div class="eyebrow">आश्रम सेवा</div>
+        <h1>सर्व नोंदी</h1>
+        <p>फिल्टर लावा, शोधा, Excel मध्ये एक्सपोर्ट करा</p>
+      </div>
+      <div class="dash-export">
+        <button class="btn btn-primary" id="export-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Excel मध्ये एक्सपोर्ट
+          <span id="export-count" style="margin-left:4px;font-weight:500;opacity:0.7;">(0)</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="filters">
+      <div class="filters-head">
+        <span class="filters-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          फिल्टर <span id="active-badge" class="badge-count" style="display:none;">0</span>
+        </span>
+        <button class="btn-link" id="clear-btn" style="display:none;">सर्व फिल्टर काढा</button>
+      </div>
+      <div class="search-wrap">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="f-search" class="input" placeholder="नाव, मोबाईल किंवा पत्ता शोधा..." />
+      </div>
+      <div class="filter-grid" id="filter-grid"></div>
+    </div>
+
+    <div class="result-count" id="result-count"></div>
+
+    <div id="results-area"></div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+  (function () {
+    const A = window.AshramApp;
+    const state = {
+      search: '',
+      fPurpose: '',
+      fLocation: '',
+      fProfession: '',
+      fType: 'all',
+      fFrom: '',
+      fTo: '',
+    };
+
+    function getAllRows() {
+      return A.loadVisitors().map(v => {
+        const last = v.visits[0];
+        const purposes = Array.from(new Set(v.visits.flatMap(vi => vi.purposes || [])));
+        return {
+          ...v,
+          lastVisitDate: last?.date || '',
+          visitCount: v.visits.length,
+          purposes,
+          type: v.visits.length > 1 ? 'existing' : 'new',
+        };
+      });
+    }
+
+    function applyFilters(rows) {
+      return rows.filter(r => {
+        if (state.search.trim()) {
+          const q = state.search.trim().toLowerCase();
+          if (!(r.name.toLowerCase().includes(q) || r.mobile.includes(q) || (r.address || '').toLowerCase().includes(q))) return false;
+        }
+        if (state.fPurpose && !r.purposes.includes(state.fPurpose)) return false;
+        if (state.fLocation && r.city !== state.fLocation) return false;
+        if (state.fProfession && !(r.professions || []).includes(state.fProfession)) return false;
+        if (state.fType !== 'all' && r.type !== state.fType) return false;
+        if (state.fFrom && r.lastVisitDate.slice(0, 10) < state.fFrom) return false;
+        if (state.fTo && r.lastVisitDate.slice(0, 10) > state.fTo) return false;
+        return true;
+      });
+    }
+
+    function activeCount() {
+      return [state.search, state.fPurpose, state.fLocation, state.fProfession,
+        state.fType !== 'all' && state.fType, state.fFrom, state.fTo].filter(Boolean).length;
+    }
+
+    function clearAll() {
+      state.search = '';
+      state.fPurpose = '';
+      state.fLocation = '';
+      state.fProfession = '';
+      state.fType = 'all';
+      state.fFrom = '';
+      state.fTo = '';
+      A.$('#f-search').value = '';
+      renderFilters();
+      renderResults();
+    }
+
+    function renderFilters() {
+      const all = getAllRows();
+      const cities = Array.from(new Set(all.map(r => r.city).filter(Boolean))).sort();
+      const grid = A.$('#filter-grid');
+      grid.innerHTML = `
+        <div class="filter-item ${state.fPurpose ? 'has-value' : ''}">
+          <label>उद्देश</label>
+          <select class="select" id="f-purpose">
+            <option value="">— —</option>
+            ${A.PURPOSE_OPTIONS.map(p => `<option value="${A.escapeHTML(p)}" ${state.fPurpose===p?'selected':''}>${A.escapeHTML(p)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-item ${state.fLocation ? 'has-value' : ''}">
+          <label>शहर / स्थळ</label>
+          <select class="select" id="f-location">
+            <option value="">— —</option>
+            ${cities.map(c => `<option value="${A.escapeHTML(c)}" ${state.fLocation===c?'selected':''}>${A.escapeHTML(c)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-item ${state.fProfession ? 'has-value' : ''}">
+          <label>व्यवसाय</label>
+          <select class="select" id="f-profession">
+            <option value="">— —</option>
+            ${A.PROFESSION_OPTIONS.map(p => `<option value="${A.escapeHTML(p)}" ${state.fProfession===p?'selected':''}>${A.escapeHTML(p)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>विजिटर प्रकार</label>
+          <div class="segmented" id="f-type">
+            <button type="button" class="${state.fType==='all'?'active':''}" data-v="all">सर्व</button>
+            <button type="button" class="${state.fType==='new'?'active':''}" data-v="new">नवीन</button>
+            <button type="button" class="${state.fType==='existing'?'active':''}" data-v="existing">पुनरागमन</button>
+          </div>
+        </div>
+        <div class="filter-item ${state.fFrom ? 'has-value' : ''}">
+          <label>पासून</label>
+          <input type="date" class="input" id="f-from" value="${state.fFrom}" />
+        </div>
+        <div class="filter-item ${state.fTo ? 'has-value' : ''}">
+          <label>पर्यंत</label>
+          <input type="date" class="input" id="f-to" value="${state.fTo}" />
+        </div>
+      `;
+      A.$('#f-purpose').onchange = e => { state.fPurpose = e.target.value; renderFilters(); renderResults(); };
+      A.$('#f-location').onchange = e => { state.fLocation = e.target.value; renderFilters(); renderResults(); };
+      A.$('#f-profession').onchange = e => { state.fProfession = e.target.value; renderFilters(); renderResults(); };
+      A.$('#f-from').onchange = e => { state.fFrom = e.target.value; renderFilters(); renderResults(); };
+      A.$('#f-to').onchange = e => { state.fTo = e.target.value; renderFilters(); renderResults(); };
+      A.$$('#f-type button').forEach(b => b.onclick = () => {
+        state.fType = b.dataset.v;
+        renderFilters(); renderResults();
+      });
+
+      const cnt = activeCount();
+      const badge = A.$('#active-badge');
+      const clearBtn = A.$('#clear-btn');
+      if (cnt > 0) {
+        badge.style.display = 'inline-block'; badge.textContent = cnt;
+        clearBtn.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+        clearBtn.style.display = 'none';
+      }
+    }
+
+    function renderResults() {
+      const all = getAllRows();
+      const rows = applyFilters(all);
+      A.$('#export-count').textContent = `(${rows.length})`;
+      A.$('#result-count').innerHTML = `दाखवत आहे <strong>${rows.length}</strong> पैकी ${all.length} नोंदी`;
+
+      const area = A.$('#results-area');
+      if (rows.length === 0) {
+        area.innerHTML = `<div class="empty-state">
+          <h3>या फिल्टरसाठी काहीही सापडले नाही</h3>
+          <p>फिल्टर बदलून पहा किंवा सर्व फिल्टर काढा.</p>
+        </div>`;
+        return;
+      }
+
+      // Desktop table
+      const tableHTML = `
+        <div class="table-wrap fade-in">
+          <div class="table-scroll">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>नाव</th><th>मोबाईल</th><th>शहर</th><th>व्यवसाय</th>
+                  <th>उद्देश</th><th>शेवटची भेट</th><th>भेटी</th><th>प्रकार</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map(r => `
+                  <tr>
+                    <td>
+                      <div class="cell-name">
+                        <div class="avatar">${A.escapeHTML(A.getInitials(r.name))}</div>
+                        <span class="name">${A.escapeHTML(r.name)}</span>
+                      </div>
+                    </td>
+                    <td>${A.escapeHTML(r.mobile)}</td>
+                    <td>${A.escapeHTML(r.city || '—')}</td>
+                    <td>
+                      <div class="cell-tags">
+                        ${(r.professions || []).slice(0, 2).map(p => `<span class="tag">${A.escapeHTML(p)}</span>`).join('')}
+                        ${(r.professions || []).length > 2 ? `<span class="tag">+${r.professions.length - 2}</span>` : ''}
+                        ${(r.professions || []).length === 0 ? '—' : ''}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="cell-tags">
+                        ${r.purposes.slice(0, 2).map(p => `<span class="tag accent">${A.escapeHTML(p)}</span>`).join('')}
+                        ${r.purposes.length > 2 ? `<span class="tag">+${r.purposes.length - 2}</span>` : ''}
+                      </div>
+                    </td>
+                    <td>${A.fmtDate(r.lastVisitDate)}</td>
+                    <td><strong>${r.visitCount}</strong></td>
+                    <td><span class="type-badge ${r.type}">${r.type === 'new' ? 'नवीन' : 'पुनरागमन'}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      // Mobile card list
+      const cardHTML = `
+        <div class="card-list fade-in">
+          ${rows.map(r => `
+            <div class="card-row">
+              <div class="card-row-head">
+                <div class="avatar">${A.escapeHTML(A.getInitials(r.name))}</div>
+                <div style="flex:1;min-width:0;">
+                  <div class="card-row-name">${A.escapeHTML(r.name)}</div>
+                  <div class="card-row-meta">${A.escapeHTML(r.mobile)} · ${A.escapeHTML(r.city || '—')}</div>
+                </div>
+                <span class="type-badge ${r.type}">${r.type === 'new' ? 'नवीन' : 'पुनरागमन'}</span>
+              </div>
+              <div class="card-row-tags">
+                ${r.purposes.map(p => `<span class="tag accent">${A.escapeHTML(p)}</span>`).join('')}
+              </div>
+              <div class="card-row-foot">
+                <span>${(r.professions || []).join(', ') || '—'}</span>
+                <span>${r.visitCount} भेटी · ${A.fmtDate(r.lastVisitDate)}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      area.innerHTML = tableHTML + cardHTML;
+    }
+
+    A.$('#f-search').addEventListener('input', e => {
+      state.search = e.target.value;
+      renderFilters();
+      renderResults();
+    });
+    A.$('#clear-btn').addEventListener('click', clearAll);
+
+    A.$('#export-btn').addEventListener('click', () => {
+      const all = getAllRows();
+      const rows = applyFilters(all);
+      if (rows.length === 0) { A.showToast('एक्सपोर्ट करण्यासाठी डेटा नाही'); return; }
+      const exportRows = [];
+      rows.forEach(r => {
+        r.visits.forEach(v => {
+          exportRows.push({
+            'Name': r.name,
+            'Mobile': r.mobile,
+            'City': r.city || '',
+            'Profession': (r.professions || []).join('; '),
+            'Address': r.address,
+            'Visit Date': A.fmtDate(v.date),
+            'Stayed': v.stayingNow,
+            'Days': v.days || 0,
+            'Purposes': (v.purposes || []).join('; '),
+            'Programs': (v.programs || []).join('; '),
+            'Health': (v.healthConditions || []).join('; '),
+            'Note': v.note || '',
+          });
+        });
+      });
+      const stamp = new Date().toISOString().slice(0, 10);
+      A.exportCSV(exportRows, `ashram-visitors-${stamp}.csv`);
+      A.showToast(`${exportRows.length} नोंदी एक्सपोर्ट केल्या`);
+    });
+
+    renderFilters();
+    renderResults();
+  })();
+  </script>
+</body>
+</html>
