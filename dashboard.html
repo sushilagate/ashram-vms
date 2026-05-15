@@ -45,12 +45,15 @@
     </div>
 
     <div class="result-count" id="result-count"></div>
-
     <div id="results-area"></div>
   </main>
+
+  <!-- FIX: Supabase CDN must load before app.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="app.js"></script>
   <script>
-  (function () {
+  // FIX: IIFE must be async to use await at top level
+  (async function () {
     const A = window.AshramApp;
     const state = {
       search: '',
@@ -63,24 +66,21 @@
     };
 
     async function getAllRows() {
-  const visitors = await A.loadVisitors();
-
-  return visitors.map(v => {
-    const last = v.visits[0];
-
-    const purposes = Array.from(
-      new Set(v.visits.flatMap(vi => vi.purposes || []))
-    );
-
-    return {
-      ...v,
-      lastVisitDate: last?.date || '',
-      visitCount: v.visits.length,
-      purposes,
-      type: v.visits.length > 1 ? 'existing' : 'new',
-    };
-  });
-}
+      const visitors = await A.loadVisitors();
+      return visitors.map(v => {
+        const last = v.visits[0];
+        const purposes = Array.from(
+          new Set(v.visits.flatMap(vi => vi.purposes || []))
+        );
+        return {
+          ...v,
+          lastVisitDate: last?.date || '',
+          visitCount: v.visits.length,
+          purposes,
+          type: v.visits.length > 1 ? 'existing' : 'new',
+        };
+      });
+    }
 
     function applyFilters(rows) {
       return rows.filter(r => {
@@ -116,7 +116,8 @@
       await renderResults();
     }
 
-    async function renderResults() {
+    // FIX: renamed from duplicate 'renderResults' to 'renderFilters'
+    async function renderFilters() {
       const all = await getAllRows();
       const cities = Array.from(new Set(all.map(r => r.city).filter(Boolean))).sort();
       const grid = A.$('#filter-grid');
@@ -159,6 +160,7 @@
           <input type="date" class="input" id="f-to" value="${state.fTo}" />
         </div>
       `;
+      // FIX: event listener callbacks are async
       A.$('#f-purpose').onchange = async e => { state.fPurpose = e.target.value; await renderFilters(); await renderResults(); };
       A.$('#f-location').onchange = async e => { state.fLocation = e.target.value; await renderFilters(); await renderResults(); };
       A.$('#f-profession').onchange = async e => { state.fProfession = e.target.value; await renderFilters(); await renderResults(); };
@@ -196,7 +198,6 @@
         return;
       }
 
-      // Desktop table
       const tableHTML = `
         <div class="table-wrap fade-in">
           <div class="table-scroll">
@@ -241,7 +242,6 @@
           </div>
         </div>
       `;
-      // Mobile card list
       const cardHTML = `
         <div class="card-list fade-in">
           ${rows.map(r => `
@@ -268,14 +268,15 @@
       area.innerHTML = tableHTML + cardHTML;
     }
 
-    A.$('#f-search').addEventListener('input', e => {
+    // FIX: event listeners that use await must be async
+    A.$('#f-search').addEventListener('input', async e => {
       state.search = e.target.value;
       await renderFilters();
       await renderResults();
     });
     A.$('#clear-btn').addEventListener('click', clearAll);
 
-    A.$('#export-btn').addEventListener('click', () => {
+    A.$('#export-btn').addEventListener('click', async () => {
       const all = await getAllRows();
       const rows = applyFilters(all);
       if (rows.length === 0) { A.showToast('एक्सपोर्ट करण्यासाठी डेटा नाही'); return; }
@@ -303,7 +304,8 @@
       A.showToast(`${exportRows.length} नोंदी एक्सपोर्ट केल्या`);
     });
 
-    await renderFilters();;
+    // FIX: these awaits now work because the IIFE is async
+    await renderFilters();
     await renderResults();
   })();
   </script>

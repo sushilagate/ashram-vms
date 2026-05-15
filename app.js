@@ -1,16 +1,12 @@
 /* ============================================================
    Ashram Visitor Registration — Shared App Logic
-   Pure vanilla JS · No frameworks · LocalStorage persistence
+   Pure vanilla JS · No frameworks · Supabase persistence
    ============================================================ */
 
-   const SUPABASE_URL = "https://vqebrffoqcetypzerfmd.supabase.co";
-
+const SUPABASE_URL = "https://vqebrffoqcetypzerfmd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_hRHuxu74astcH9ksWBQ46g_ROeCrkwA";
 
-const supabaseClient = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 (function () {
   'use strict';
@@ -39,141 +35,69 @@ const supabaseClient = supabase.createClient(
     { value: 'Thyroid', label: 'Thyroid (थायरॉईड)' },
   ];
 
-  // ----- Seed demo data -----
-  const DEMO_VISITORS = [
-    {
-      mobile: '7045021486', name: 'अनिल देशमुख',
-      address: 'फ्लॅट ३०२, गणेश अपार्टमेंट, कोथरूड, पुणे - ४११०३८',
-      city: 'पुणे', professions: ['IT Professional'],
-      visits: [
-        { date: '2025-09-05T10:30', stayingNow: 'होय', days: 2, programs: ['शिबिर','सत्संग / प्रवचन'], purposes: ['सेवा करणे','पारायण करणे'], note: 'नियमित सेवा कार्य', healthConditions: ['BP'] },
-        { date: '2025-01-10T08:00', stayingNow: 'होय', days: 5, programs: ['शिबिर'], purposes: ['शिबिर अटेंड करणे'], note: 'BP औषधे सोबत आणली आहेत', healthConditions: ['BP'] },
-        { date: '2024-08-20T09:00', stayingNow: 'होय', days: 3, programs: ['शिबिर'], purposes: ['शिबिर अटेंड करणे'], note: '', healthConditions: [] },
-        { date: '2024-03-15T10:30', stayingNow: 'नाही', days: 0, programs: ['वार्षिक उत्सव'], purposes: ['दीक्षा'], note: '', healthConditions: [] },
-      ],
-    },
-    {
-      mobile: '9876543210', name: 'राम जोशी',
-      address: '१२४, शिवाजी नगर, नाशिक - ४२२००५',
-      city: 'नाशिक', professions: ['Teacher','Freelancer'],
-      visits: [
-        { date: '2025-11-10T09:30', stayingNow: 'होय', days: 4, programs: ['सत्संग / प्रवचन','बालसंस्कार वर्ग'], purposes: ['पारायण करणे','वेदांत शास्त्र शिकणे'], note: '', healthConditions: [] },
-        { date: '2025-04-15T07:00', stayingNow: 'होय', days: 7, programs: ['सत्संग / प्रवचन','बालसंस्कार वर्ग'], purposes: ['वेदांत शास्त्र शिकणे'], note: 'मुलांसोबत आले आहेत', healthConditions: [] },
-        { date: '2024-12-25T16:00', stayingNow: 'नाही', days: 0, programs: ['सत्संग / प्रवचन'], purposes: ['दीक्षा'], note: '', healthConditions: [] },
-      ],
-    },
-    {
-      mobile: '9123456789', name: 'सुनिता पाटील',
-      address: 'राहाडकी, ता. भोर, जि. पुणे - ४१२२०५',
-      city: 'पुणे', professions: ['Homemaker'],
-      visits: [
-        { date: '2025-12-20T07:30', stayingNow: 'होय', days: 5, programs: ['शिबिर','सत्संग / प्रवचन'], purposes: ['रुद्राभिषेक','सेवा करणे'], note: 'मधुमेहासाठी आहार विशेष', healthConditions: ['Diabetes','BP'] },
-        { date: '2025-06-12T08:00', stayingNow: 'होय', days: 3, programs: ['वार्षिक उत्सव'], purposes: ['सेवा करणे'], note: '', healthConditions: ['Diabetes'] },
-      ],
-    },
-    {
-      mobile: '9988776655', name: 'राम कदम',
-      address: '४५, शास्त्री नगर, औरंगाबाद - ४३१००१',
-      city: 'औरंगाबाद', professions: ['Business','Farmer'],
-      visits: [
-        { date: '2025-07-22T08:30', stayingNow: 'होय', days: 6, programs: ['शिबिर','सेवा कार्य'], purposes: ['शिबिर अटेंड करणे','सेवा करणे'], note: 'दम्यासाठी inhaler सोबत', healthConditions: ['Asthma'] },
-        { date: '2024-11-05T10:00', stayingNow: 'होय', days: 2, programs: ['वार्षिक उत्सव'], purposes: ['दीक्षा'], note: '', healthConditions: [] },
-      ],
-    },
-    {
-      mobile: '8855442211', name: 'मीरा कुलकर्णी',
-      address: 'सदाशिव पेठ, पुणे - ४११०३०',
-      city: 'पुणे', professions: ['Doctor'],
-      visits: [
-        { date: '2026-02-14T11:00', stayingNow: 'होय', days: 3, programs: ['सत्संग / प्रवचन'], purposes: ['वेदांत शास्त्र शिकणे'], note: '', healthConditions: [] },
-        { date: '2025-08-08T09:00', stayingNow: 'नाही', days: 0, programs: ['वार्षिक उत्सव'], purposes: ['दीक्षा'], note: '', healthConditions: [] },
-      ],
-    },
-    {
-      mobile: '9665544332', name: 'विकास शिंदे',
-      address: '१८, टिळक रोड, सोलापूर - ४१३००१',
-      city: 'सोलापूर', professions: ['Engineer','IT Professional'],
-      visits: [
-        { date: '2026-01-22T09:00', stayingNow: 'होय', days: 4, programs: ['शिबिर'], purposes: ['शिबिर अटेंड करणे'], note: '', healthConditions: [] },
-        { date: '2025-05-10T08:30', stayingNow: 'होय', days: 2, programs: ['सेवा कार्य'], purposes: ['सेवा करणे'], note: '', healthConditions: [] },
-      ],
-    },
-    {
-      mobile: '9433221100', name: 'गायत्री भोसले',
-      address: 'महर्षि नगर, कोल्हापूर - ४१६००१',
-      city: 'कोल्हापूर', professions: ['Student'],
-      visits: [
-        { date: '2026-03-10T07:00', stayingNow: 'होय', days: 7, programs: ['बालसंस्कार वर्ग'], purposes: ['वेदांत शास्त्र शिकणे'], note: '', healthConditions: [] },
-      ],
-    },
-    {
-      mobile: '9322110099', name: 'दिनकर पवार',
-      address: 'गांधीनगर, नागपूर - ४४००१०',
-      city: 'नागपूर', professions: ['Retired'],
-      visits: [
-        { date: '2025-10-15T07:30', stayingNow: 'होय', days: 10, programs: ['सत्संग / प्रवचन'], purposes: ['पारायण करणे','दीक्षा'], note: '', healthConditions: ['BP','Diabetes'] },
-        { date: '2024-06-20T08:00', stayingNow: 'होय', days: 5, programs: ['वार्षिक उत्सव'], purposes: ['दीक्षा'], note: '', healthConditions: ['BP'] },
-      ],
-    },
-  ];
-
   // ----- Storage helpers -----
+  // FIX 1: supabase → supabaseClient
   async function loadVisitors() {
-  const { data, error } = await supabase
-    .from('visitors')
-    .select('*')
-    .order('created_at', { ascending: false });
+    const { data, error } = await supabaseClient
+      .from('visitors')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error(error);
-    return [];
-  }
-
-  const grouped = {};
-
-  data.forEach(row => {
-    if (!grouped[row.mobile]) {
-      grouped[row.mobile] = {
-        name: row.name,
-        mobile: row.mobile,
-        address: row.address,
-        city: row.city,
-        professions: row.profession
-          ? row.profession.split(',').map(s => s.trim())
-          : [],
-        visits: []
-      };
+    if (error) {
+      console.error(error);
+      return [];
     }
 
-    grouped[row.mobile].visits.push({
-      date: row.visit_date,
-      days: Number(row.stayed_days || 0),
-      stayingNow: Number(row.stayed_days || 0) > 0 ? 'होय' : 'नाही',
-      purposes: row.purposes
-        ? row.purposes.split(',').map(s => s.trim())
-        : [],
-      programs: row.programs
-        ? row.programs.split(',').map(s => s.trim())
-        : [],
-      healthConditions: row.health
-        ? row.health.split(',').map(s => s.trim())
-        : [],
-      note: row.note || ''
-    });
-  });
+    const grouped = {};
 
-  return Object.values(grouped);
-}
+    data.forEach(row => {
+      if (!grouped[row.mobile]) {
+        grouped[row.mobile] = {
+          name: row.name,
+          mobile: row.mobile,
+          address: row.address,
+          city: row.city,
+          professions: row.profession
+            ? row.profession.split(',').map(s => s.trim())
+            : [],
+          visits: []
+        };
+      }
+
+      grouped[row.mobile].visits.push({
+        date: row.visit_date,
+        days: Number(row.stayed_days || 0),
+        stayingNow: Number(row.stayed_days || 0) > 0 ? 'होय' : 'नाही',
+        purposes: row.purposes
+          ? row.purposes.split(',').map(s => s.trim())
+          : [],
+        programs: row.programs
+          ? row.programs.split(',').map(s => s.trim())
+          : [],
+        healthConditions: row.health
+          ? row.health.split(',').map(s => s.trim())
+          : [],
+        note: row.note || ''
+      });
+    });
+
+    return Object.values(grouped);
+  }
+
   function saveVisitors(list) {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
     catch (e) { console.warn('storage save failed', e); }
   }
-  function findByMobile(mobile) {
+
+  // FIX 2: findByMobile — make async, add await
+  async function findByMobile(mobile) {
     const all = await loadVisitors();
     return all.find(v => v.mobile === mobile);
   }
+
+  // FIX 3: searchVisitors — add await before loadVisitors()
   async function searchVisitors({ mobile, name } = {}) {
-    const all = loadVisitors();
+    const all = await loadVisitors();
     if (mobile && /^\d{10}$/.test(mobile)) {
       const exact = all.find(v => v.mobile === mobile);
       return exact ? [exact] : all.filter(v => v.mobile.includes(mobile));
@@ -185,9 +109,9 @@ const supabaseClient = supabase.createClient(
     }
     return [];
   }
-  function addVisitor(data) {
-    const all = loadVisitors();
-    const existing = all.findIndex(v => v.mobile === data.mobile);
+
+  // FIX 4: addVisitor — make async, add await before loadVisitors()
+  async function addVisitor(data) {
     const visitEntry = {
       date: data.visitDate || new Date().toISOString().slice(0, 16),
       stayingNow: data.stayingNow,
@@ -199,71 +123,36 @@ const supabaseClient = supabase.createClient(
         : [],
       note: data.note || '',
     };
-    if (existing >= 0) {
-      // Returning visitor — prepend new visit
-      all[existing].visits.unshift(visitEntry);
-      // Update editable fields
-      if (data.name) all[existing].name = data.name;
-      if (data.address) all[existing].address = data.address;
-      if (data.professions) all[existing].professions = [...data.professions, ...(data.professionOther ? [data.professionOther] : [])];
-      saveVisitors(all);
 
-saveVisitorToSupabase({
-  name: data.name,
-  mobile: data.mobile,
-  city: extractCity(data.address),
-  profession: (data.professions || []).join(", "),
-  address: data.address,
-  visit_date: visitEntry.date,
-  stayed_days: String(visitEntry.days),
-  purposes: visitEntry.purposes.join(", "),
-  programs: visitEntry.programs.join(", "),
-  health: visitEntry.healthConditions.join(", "),
-  note: visitEntry.note,
-});
-
-return {
-  visitor: all[existing],
-  visitNumber: all[existing].visits.length
-};
-    }
-    const newVisitor = {
-      mobile: data.mobile,
+    await saveVisitorToSupabase({
       name: data.name,
-      address: data.address,
+      mobile: data.mobile,
       city: extractCity(data.address),
-      professions: [...(data.professions || []), ...(data.professionOther ? [data.professionOther] : [])],
-      visits: [visitEntry],
-    };
-    all.unshift(newVisitor);
-saveVisitors(all);
+      profession: (data.professions || []).join(", "),
+      address: data.address,
+      visit_date: visitEntry.date,
+      stayed_days: String(visitEntry.days),
+      purposes: visitEntry.purposes.join(", "),
+      programs: visitEntry.programs.join(", "),
+      health: visitEntry.healthConditions.join(", "),
+      note: visitEntry.note,
+    });
 
-saveVisitorToSupabase({
-  name: data.name,
-  mobile: data.mobile,
-  city: extractCity(data.address),
-  profession: (data.professions || []).join(", "),
-  address: data.address,
-  visit_date: visitEntry.date,
-  stayed_days: String(visitEntry.days),
-  purposes: visitEntry.purposes.join(", "),
-  programs: visitEntry.programs.join(", "),
-  health: visitEntry.healthConditions.join(", "),
-  note: visitEntry.note,
-});
-
-return {
-  visitor: newVisitor,
-  visitNumber: 1
-};
+    // For visit number, fetch updated data
+    const all = await loadVisitors();
+    const existing = all.find(v => v.mobile === data.mobile);
+    if (existing) {
+      return { visitor: existing, visitNumber: existing.visits.length };
+    }
+    return { visitor: { mobile: data.mobile, name: data.name }, visitNumber: 1 };
   }
+
   function resetSeed() {
-    saveVisitors(DEMO_VISITORS);
+    console.warn('resetSeed is a no-op in Supabase mode');
   }
-  // Try to extract a city name from address; fallback to last segment
+
   function extractCity(addr) {
     if (!addr) return '';
-    // crude: take portion before the dash/pincode, last comma-separated piece
     const cleaned = addr.split('-')[0];
     const parts = cleaned.split(/[,，]/).map(s => s.trim()).filter(Boolean);
     return parts[parts.length - 1] || '';
@@ -364,13 +253,13 @@ return {
   }
 
   // ----- Multi-select chip group -----
-  // Renders into `container`; calls onChange(values, otherValue) on any change
+  // FIX 5: removed 'async' from inner render (not needed)
   function makeChipGroup({ container, options, values = [], otherValue = '', otherLabel = 'इतर', otherPlaceholder = 'टाइप करा...', allowOther = true, onChange }) {
     const selected = new Set(values);
     let other = otherValue;
     let showOther = !!otherValue;
 
-    async function render() {
+    function render() {
       const opts = options.map(o => typeof o === 'string' ? { value: o, label: o } : o);
       const chipsHTML = opts.map(o => {
         const isSel = selected.has(o.value);
@@ -424,51 +313,34 @@ return {
     return e;
   }
 
+  // ----- Supabase save helper -----
+  async function saveVisitorToSupabase(data) {
+    const { error } = await supabaseClient
+      .from('visitors')
+      .insert([data]);
+
+    if (error) {
+      console.error("Supabase Error:", error);
+      showToast("डेटा जतन अयशस्वी");
+      return false;
+    }
+    return true;
+  }
+
   // ----- Public API -----
   window.AshramApp = {
-    // constants
     PROGRAM_OPTIONS, PURPOSE_OPTIONS, PROFESSION_OPTIONS, HEALTH_OPTIONS,
-    // storage
     loadVisitors, saveVisitors, addVisitor, searchVisitors, findByMobile, resetSeed,
-    // helpers
     fmtDate, fmtMonthYear, nowLocalISO, getInitials, maskMobile, escapeHTML,
     extractCity, exportCSV, showToast,
-    // ui
     renderHeader, makeChipGroup,
-    // dom
     $, $$, el,
   };
 
   // ----- Auto-init -----
   document.addEventListener('DOMContentLoaded', () => {
-  const page = document.body.dataset.page;
-  renderHeader(page);
-});
+    const page = document.body.dataset.page;
+    renderHeader(page);
+  });
 
-async function saveVisitorToSupabase(data) {
-  const { error } = await supabaseClient
-    .from('visitors')
-    .insert([data]);
-
-  if (error) {
-    console.error("Supabase Error:", error);
-    alert("Data save failed");
-    return false;
-  }
-
-  return true;
-}
 })();
-async function saveVisitorToSupabase(data) {
-  const { error } = await supabaseClient
-    .from("visitors")
-    .insert([data]);
-
-  if (error) {
-    console.error("Supabase Error:", error);
-    alert("Data save failed");
-    return false;
-  }
-
-  return true;
-}

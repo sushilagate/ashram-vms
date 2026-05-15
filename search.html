@@ -22,6 +22,9 @@
 
     <div id="app"></div>
   </main>
+
+  <!-- FIX: Supabase CDN must load before app.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="app.js"></script>
   <script>
   (function () {
@@ -29,37 +32,42 @@
     const root = document.getElementById('app');
 
     const state = {
-      view: 'search',       // 'search' | 'results' | 'profile' | 'success'
-      searchType: 'mobile', // 'mobile' | 'name'
+      view: 'search',
+      searchType: 'mobile',
       query: '',
       results: [],
-      selected: null,       // visitor object
+      selected: null,
       visitData: null,
       lastSubmit: null,
     };
 
-    function showAll() {
-      state.results = A.loadVisitors();
+    // FIX: showAll must be async since loadVisitors is async
+    async function showAll() {
+      state.results = await A.loadVisitors();
       state.view = 'results';
-      render();
+      await render();
     }
 
-    function doSearch() {
+    // FIX: doSearch must be async; fixed broken 'matches = const results = await' syntax
+    async function doSearch() {
       const q = state.query.trim();
-      if (!q) { showAll(); return; }
+      if (!q) { await showAll(); return; }
       let matches = [];
       if (state.searchType === 'mobile') {
-        matches = const results = await A.searchVisitors({ mobile: q });
-        if (matches.length === 0) matches = A.loadVisitors().filter(v => v.mobile.includes(q));
+        matches = await A.searchVisitors({ mobile: q });
+        if (matches.length === 0) {
+          const all = await A.loadVisitors();
+          matches = all.filter(v => v.mobile.includes(q));
+        }
       } else {
-        matches = const results = await A.searchVisitors({ name: q });
+        matches = await A.searchVisitors({ name: q });
       }
       state.results = matches;
       state.view = 'results';
-      render();
+      await render();
     }
 
-    function selectVisitor(v) {
+    async function selectVisitor(v) {
       state.selected = v;
       state.visitData = {
         visitDate: A.nowLocalISO(),
@@ -71,7 +79,7 @@
         note: '',
       };
       state.view = 'profile';
-      render();
+      await render();
     }
 
     async function render() {
@@ -106,7 +114,7 @@
       A.$$('.search-tab').forEach(btn => btn.onclick = async () => {
         state.searchType = btn.dataset.type;
         state.query = '';
-        render();
+        await render();
       });
       const inp = A.$('#q-input');
       inp.addEventListener('input', e => {
@@ -135,7 +143,7 @@
              <div class="result-list slide-in" id="rlist"></div>`
         }
       `;
-      A.$('#back-btn').onclick = async () => { state.view = 'search'; render(); };
+      A.$('#back-btn').onclick = async () => { state.view = 'search'; await render(); };
       const host = A.$('#rlist');
       if (host) {
         list.forEach(v => {
@@ -277,7 +285,7 @@
           <button class="btn btn-primary btn-block" id="submit-btn">नवीन भेट नोंदवा</button>
         </div>
       `;
-      A.$('#back-btn').onclick = async () => { state.view = 'results'; render(); };
+      A.$('#back-btn').onclick = async () => { state.view = 'results'; await render(); };
       A.$$('input[name="staying"]').forEach(r => r.addEventListener('change', e => {
         d.stayingNow = e.target.value;
         A.$('#stay-block').style.display = (e.target.value === 'होय') ? 'block' : 'none';
@@ -339,7 +347,7 @@
       if (btn) btn.disabled = !canSubmit();
     }
 
-    function submit() {
+    async function submit() {
       if (!canSubmit()) return;
       const v = state.selected;
       const d = state.visitData;
@@ -349,10 +357,10 @@
         ...d,
       };
       try {
-        const result = A.addVisitor(full);
+        const result = await A.addVisitor(full);
         state.lastSubmit = { data: full, result };
         state.view = 'success';
-        render();
+        await render();
       } catch (e) {
         console.error(e);
         A.showToast('जतन अयशस्वी');
@@ -384,10 +392,12 @@
           </div>
         </div>
       `;
-      A.$('#go-dash').onclick = async () => { window.location.href = 'dashboard.html'; };
-      A.$('#another').onclick = async async () => { state.view = 'search'; state.query = ''; state.selected = null; render(); };
+      A.$('#go-dash').onclick = () => { window.location.href = 'dashboard.html'; };
+      // FIX: removed duplicate 'async async' keyword typo
+      A.$('#another').onclick = async () => { state.view = 'search'; state.query = ''; state.selected = null; await render(); };
     }
 
+    // FIX: initial render call wrapped in async context
     render();
   })();
   </script>
