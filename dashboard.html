@@ -160,12 +160,12 @@
           <input type="date" class="input" id="f-to" value="${state.fTo}" />
         </div>
       `;
-      A.$('#f-purpose').onchange = e => { state.fPurpose = e.target.value; await renderFilters(); await renderResults(); };
-      A.$('#f-location').onchange = e => { state.fLocation = e.target.value; await renderFilters(); await renderResults(); };
-      A.$('#f-profession').onchange = e => { state.fProfession = e.target.value; await renderFilters(); await renderResults(); };
-      A.$('#f-from').onchange = e => { state.fFrom = e.target.value; await renderFilters(); await renderResults(); };
-      A.$('#f-to').onchange = e => { state.fTo = e.target.value; await renderFilters(); await renderResults(); };
-      A.$$('#f-type button').forEach(b => b.onclick = () => {
+      A.$('#f-purpose').onchange = async e => { state.fPurpose = e.target.value; await renderFilters(); await renderResults(); };
+      A.$('#f-location').onchange = async e => { state.fLocation = e.target.value; await renderFilters(); await renderResults(); };
+      A.$('#f-profession').onchange = async e => { state.fProfession = e.target.value; await renderFilters(); await renderResults(); };
+      A.$('#f-from').onchange = async e => { state.fFrom = e.target.value; await renderFilters(); await renderResults(); };
+      A.$('#f-to').onchange = async e => { state.fTo = e.target.value; await renderFilters(); await renderResults(); };
+      A.$$('#f-type button').forEach(b => b.onclick = async () => {
         state.fType = b.dataset.v;
         await renderFilters(); await renderResults();
       });
