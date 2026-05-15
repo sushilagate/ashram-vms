@@ -113,11 +113,11 @@
       state.fFrom = '';
       state.fTo = '';
       A.$('#f-search').value = '';
-      renderFilters();
-      renderResults();
+      await renderFilters();
+      await renderResults();
     }
 
-    async function renderResults() {
+    async async function renderResults() {
       const all = await getAllRows();
       const cities = Array.from(new Set(all.map(r => r.city).filter(Boolean))).sort();
       const grid = A.$('#filter-grid');
@@ -160,14 +160,14 @@
           <input type="date" class="input" id="f-to" value="${state.fTo}" />
         </div>
       `;
-      A.$('#f-purpose').onchange = e => { state.fPurpose = e.target.value; renderFilters(); renderResults(); };
-      A.$('#f-location').onchange = e => { state.fLocation = e.target.value; renderFilters(); renderResults(); };
-      A.$('#f-profession').onchange = e => { state.fProfession = e.target.value; renderFilters(); renderResults(); };
-      A.$('#f-from').onchange = e => { state.fFrom = e.target.value; renderFilters(); renderResults(); };
-      A.$('#f-to').onchange = e => { state.fTo = e.target.value; renderFilters(); renderResults(); };
+      A.$('#f-purpose').onchange = e => { state.fPurpose = e.target.value; await renderFilters(); await renderResults(); };
+      A.$('#f-location').onchange = e => { state.fLocation = e.target.value; await renderFilters(); await renderResults(); };
+      A.$('#f-profession').onchange = e => { state.fProfession = e.target.value; await renderFilters(); await renderResults(); };
+      A.$('#f-from').onchange = e => { state.fFrom = e.target.value; await renderFilters(); await renderResults(); };
+      A.$('#f-to').onchange = e => { state.fTo = e.target.value; await renderFilters(); await renderResults(); };
       A.$$('#f-type button').forEach(b => b.onclick = () => {
         state.fType = b.dataset.v;
-        renderFilters(); renderResults();
+        await renderFilters(); await renderResults();
       });
 
       const cnt = activeCount();
@@ -182,7 +182,7 @@
       }
     }
 
-    function renderResults() {
+    async function renderResults() {
       const all = await getAllRows();
       const rows = applyFilters(all);
       A.$('#export-count').textContent = `(${rows.length})`;
@@ -271,8 +271,8 @@
 
     A.$('#f-search').addEventListener('input', e => {
       state.search = e.target.value;
-      renderFilters();
-      renderResults();
+      await renderFilters();
+      await renderResults();
     });
     A.$('#clear-btn').addEventListener('click', clearAll);
 
@@ -304,8 +304,8 @@
       A.showToast(`${exportRows.length} नोंदी एक्सपोर्ट केल्या`);
     });
 
-    renderFilters();
-    renderResults();
+    await renderFilters();;
+    await renderResults();
   })();
   </script>
 </body>

@@ -68,7 +68,7 @@
       return true;
     }
 
-    function render() {
+   async function render() {
       if (state.view === 'success') return renderSuccess();
       const ts = totalSteps();
       const stepIdx = state.step;
