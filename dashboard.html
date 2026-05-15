@@ -104,7 +104,7 @@
         state.fType !== 'all' && state.fType, state.fFrom, state.fTo].filter(Boolean).length;
     }
 
-    function clearAll() {
+    async function clearAll() {
       state.search = '';
       state.fPurpose = '';
       state.fLocation = '';
@@ -117,7 +117,7 @@
       await renderResults();
     }
 
-    async async function renderResults() {
+    async function renderResults() {
       const all = await getAllRows();
       const cities = Array.from(new Set(all.map(r => r.city).filter(Boolean))).sort();
       const grid = A.$('#filter-grid');
