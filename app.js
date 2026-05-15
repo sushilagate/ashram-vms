@@ -370,7 +370,7 @@ return {
     let other = otherValue;
     let showOther = !!otherValue;
 
-    function render() {
+    async function render() {
       const opts = options.map(o => typeof o === 'string' ? { value: o, label: o } : o);
       const chipsHTML = opts.map(o => {
         const isSel = selected.has(o.value);
@@ -441,9 +441,23 @@ return {
 
   // ----- Auto-init -----
   document.addEventListener('DOMContentLoaded', () => {
-    const page = document.body.dataset.page;
-    renderHeader(page);
-  });
+  const page = document.body.dataset.page;
+  renderHeader(page);
+});
+
+async function saveVisitorToSupabase(data) {
+  const { error } = await supabaseClient
+    .from('visitors')
+    .insert([data]);
+
+  if (error) {
+    console.error("Supabase Error:", error);
+    alert("Data save failed");
+    return false;
+  }
+
+  return true;
+}
 })();
 async function saveVisitorToSupabase(data) {
   const { error } = await supabaseClient

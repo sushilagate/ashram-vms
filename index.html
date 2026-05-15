@@ -24,7 +24,6 @@
 
     <div id="app"></div>
   </main>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
   <script>
   (function () {
@@ -36,7 +35,7 @@
       data: {
         name: '', mobile: '', address: '',
         professions: [], professionOther: '',
-        visitDate: A.nowLocalISO(),
+        visitDate: new Date().toISOString(),
         stayingNow: '', checkin: '', checkout: '', days: '',
         purposes: [], purposeOther: '',
         programs: [],
@@ -99,10 +98,10 @@
       else renderStepNote(stepCard);
 
       const backBtn = document.getElementById('back-btn');
-      if (backBtn) backBtn.onclick = () => { state.step--; render(); };
+      if (backBtn) backBtn.onclick = async () => { state.step--; render(); };
       const nextBtn = document.getElementById('next-btn');
       nextBtn.disabled = !canAdvance();
-      nextBtn.onclick = () => {
+      nextBtn.onclick = async () => {
         if (!canAdvance()) return;
         if (stepIdx < ts - 1) { state.step++; render(); }
         else submit();
@@ -375,8 +374,8 @@
           </div>
         </div>
       `;
-      document.getElementById('go-dash').onclick = () => { window.location.href = 'dashboard.html'; };
-      document.getElementById('new-reg').onclick = () => {
+      document.getElementById('go-dash').onclick = async () => { window.location.href = 'dashboard.html'; };
+      document.getElementById('new-reg').onclick = async () => {
         state.step = 0;
         state.view = 'form';
         state.lastSubmit = null;
