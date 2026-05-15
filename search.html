@@ -77,7 +77,7 @@
 
     function render() {
       if (state.view === 'search') return renderSearch();
-      if (state.view === 'results') return renderResults();
+      if (state.view === 'results') return await renderResults();
       if (state.view === 'profile') return renderProfile();
       if (state.view === 'success') return renderSuccess();
     }

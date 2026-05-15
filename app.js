@@ -118,23 +118,61 @@ const supabaseClient = supabase.createClient(
   ];
 
   // ----- Storage helpers -----
-  function loadVisitors() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch (e) {}
-    saveVisitors(DEMO_VISITORS);
-    return JSON.parse(JSON.stringify(DEMO_VISITORS));
+  async function loadVisitors() {
+  const { data, error } = await supabase
+    .from('visitors')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error(error);
+    return [];
   }
+
+  const grouped = {};
+
+  data.forEach(row => {
+    if (!grouped[row.mobile]) {
+      grouped[row.mobile] = {
+        name: row.name,
+        mobile: row.mobile,
+        address: row.address,
+        city: row.city,
+        professions: row.profession
+          ? row.profession.split(',').map(s => s.trim())
+          : [],
+        visits: []
+      };
+    }
+
+    grouped[row.mobile].visits.push({
+      date: row.visit_date,
+      days: Number(row.stayed_days || 0),
+      stayingNow: Number(row.stayed_days || 0) > 0 ? 'होय' : 'नाही',
+      purposes: row.purposes
+        ? row.purposes.split(',').map(s => s.trim())
+        : [],
+      programs: row.programs
+        ? row.programs.split(',').map(s => s.trim())
+        : [],
+      healthConditions: row.health
+        ? row.health.split(',').map(s => s.trim())
+        : [],
+      note: row.note || ''
+    });
+  });
+
+  return Object.values(grouped);
+}
   function saveVisitors(list) {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
     catch (e) { console.warn('storage save failed', e); }
   }
   function findByMobile(mobile) {
-    const all = loadVisitors();
+    const all = await loadVisitors();
     return all.find(v => v.mobile === mobile);
   }
-  function searchVisitors({ mobile, name } = {}) {
+  async function searchVisitors({ mobile, name } = {}) {
     const all = loadVisitors();
     if (mobile && /^\d{10}$/.test(mobile)) {
       const exact = all.find(v => v.mobile === mobile);

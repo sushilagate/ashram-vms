@@ -63,19 +63,25 @@
       fTo: '',
     };
 
-    function getAllRows() {
-      return A.loadVisitors().map(v => {
-        const last = v.visits[0];
-        const purposes = Array.from(new Set(v.visits.flatMap(vi => vi.purposes || [])));
-        return {
-          ...v,
-          lastVisitDate: last?.date || '',
-          visitCount: v.visits.length,
-          purposes,
-          type: v.visits.length > 1 ? 'existing' : 'new',
-        };
-      });
-    }
+    async function getAllRows() {
+  const visitors = await A.loadVisitors();
+
+  return visitors.map(v => {
+    const last = v.visits[0];
+
+    const purposes = Array.from(
+      new Set(v.visits.flatMap(vi => vi.purposes || []))
+    );
+
+    return {
+      ...v,
+      lastVisitDate: last?.date || '',
+      visitCount: v.visits.length,
+      purposes,
+      type: v.visits.length > 1 ? 'existing' : 'new',
+    };
+  });
+}
 
     function applyFilters(rows) {
       return rows.filter(r => {
@@ -111,8 +117,8 @@
       renderResults();
     }
 
-    function renderFilters() {
-      const all = getAllRows();
+    async function renderResults() {
+      const all = await getAllRows();
       const cities = Array.from(new Set(all.map(r => r.city).filter(Boolean))).sort();
       const grid = A.$('#filter-grid');
       grid.innerHTML = `
@@ -177,7 +183,7 @@
     }
 
     function renderResults() {
-      const all = getAllRows();
+      const all = await getAllRows();
       const rows = applyFilters(all);
       A.$('#export-count').textContent = `(${rows.length})`;
       A.$('#result-count').innerHTML = `दाखवत आहे <strong>${rows.length}</strong> पैकी ${all.length} नोंदी`;
@@ -271,7 +277,7 @@
     A.$('#clear-btn').addEventListener('click', clearAll);
 
     A.$('#export-btn').addEventListener('click', () => {
-      const all = getAllRows();
+      const all = await getAllRows();
       const rows = applyFilters(all);
       if (rows.length === 0) { A.showToast('एक्सपोर्ट करण्यासाठी डेटा नाही'); return; }
       const exportRows = [];
