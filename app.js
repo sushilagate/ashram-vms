@@ -3,6 +3,15 @@
    Pure vanilla JS · No frameworks · LocalStorage persistence
    ============================================================ */
 
+   const SUPABASE_URL = "https://vqebrffoqcetypzerfmd.supabase.co";
+
+const SUPABASE_KEY = "sb_publishable_hRHuxu74astcH9ksWBQ46g_ROeCrkwA";
+
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
 (function () {
   'use strict';
 
@@ -160,7 +169,25 @@
       if (data.address) all[existing].address = data.address;
       if (data.professions) all[existing].professions = [...data.professions, ...(data.professionOther ? [data.professionOther] : [])];
       saveVisitors(all);
-      return { visitor: all[existing], visitNumber: all[existing].visits.length };
+
+saveVisitorToSupabase({
+  name: data.name,
+  mobile: data.mobile,
+  city: extractCity(data.address),
+  profession: (data.professions || []).join(", "),
+  address: data.address,
+  visit_date: visitEntry.date,
+  stayed_days: String(visitEntry.days),
+  purposes: visitEntry.purposes.join(", "),
+  programs: visitEntry.programs.join(", "),
+  health: visitEntry.healthConditions.join(", "),
+  note: visitEntry.note,
+});
+
+return {
+  visitor: all[existing],
+  visitNumber: all[existing].visits.length
+};
     }
     const newVisitor = {
       mobile: data.mobile,
@@ -171,8 +198,26 @@
       visits: [visitEntry],
     };
     all.unshift(newVisitor);
-    saveVisitors(all);
-    return { visitor: newVisitor, visitNumber: 1 };
+saveVisitors(all);
+
+saveVisitorToSupabase({
+  name: data.name,
+  mobile: data.mobile,
+  city: extractCity(data.address),
+  profession: (data.professions || []).join(", "),
+  address: data.address,
+  visit_date: visitEntry.date,
+  stayed_days: String(visitEntry.days),
+  purposes: visitEntry.purposes.join(", "),
+  programs: visitEntry.programs.join(", "),
+  health: visitEntry.healthConditions.join(", "),
+  note: visitEntry.note,
+});
+
+return {
+  visitor: newVisitor,
+  visitNumber: 1
+};
   }
   function resetSeed() {
     saveVisitors(DEMO_VISITORS);
@@ -362,3 +407,16 @@
     renderHeader(page);
   });
 })();
+async function saveVisitorToSupabase(data) {
+  const { error } = await supabaseClient
+    .from("visitors")
+    .insert([data]);
+
+  if (error) {
+    console.error("Supabase Error:", error);
+    alert("Data save failed");
+    return false;
+  }
+
+  return true;
+}
